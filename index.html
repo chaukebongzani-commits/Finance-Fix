@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Finance Fix</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--blue:#2563eb;--line:#e5e7eb;--green:#15803d;--red:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+.app{max-width:600px;margin:auto;padding:18px 16px 40px;min-height:100vh}
+h1{font-size:30px;margin:6px 0 3px}h2{margin:5px 0 14px}.sub{color:var(--muted);margin-bottom:16px}
+.card{background:var(--card);border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 5px 18px #0000000d}
+.dark{background:#111827;color:white}.dark small{color:#cbd5e1}.amount{font-size:40px;font-weight:800;margin:8px 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f8fafc;border-radius:15px;padding:15px}.stat b{display:block;font-size:20px;margin-top:5px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;font-size:15px;cursor:pointer;background:var(--blue);color:#fff}.secondary{background:#e5e7eb;color:#111827}.danger{background:#fee2e2;color:#b91c1c}.smallbtn{padding:8px 10px;font-size:12px}
+input,select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;margin:5px 0 10px;font-size:16px;background:white}
+.progress{height:12px;background:#e5e7eb;border-radius:99px;overflow:hidden}.bar{height:100%;background:var(--blue);width:0}
+.hidden{display:none!important}.muted{color:var(--muted)}.positive{color:var(--green)}.negative{color:var(--red)}
+.chart{display:flex;align-items:end;gap:8px;height:170px;padding-top:10px}.col{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:end}.barx{width:75%;max-width:38px;background:var(--blue);border-radius:7px 7px 2px 2px;min-height:3px}.label{font-size:10px;color:var(--muted);margin-top:5px;text-align:center}
+.tip{padding:12px;border-left:4px solid var(--blue);background:#eff6ff;border-radius:10px;margin:7px 0}.tip.warn{background:#fff7ed;border-color:#f97316}.tip.good{background:#f0fdf4;border-color:#16a34a}
+.tx{padding:12px 0;border-bottom:1px solid var(--line)}.tx:last-child{border:0}.txmain{display:flex;justify-content:space-between;gap:8px}.tiny{font-size:12px}
+.modal{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}.modalbox{background:white;border-radius:22px;padding:22px;width:min(410px,100%);text-align:center}
+.nav{position:sticky;bottom:10px;background:#111827;border-radius:18px;padding:9px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:15px}.nav button{background:transparent;padding:9px 4px;font-size:12px}.nav button.active{background:#2563eb}
+.toast{position:fixed;left:50%;bottom:85px;transform:translateX(-50%);background:#111827;color:#fff;padding:11px 15px;border-radius:12px;display:none;z-index:20}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111827">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<style>
+#installApp{display:none;width:100%;margin:8px 0 12px;background:#111827;color:#fff}
+.pwa-note{font-size:12px;color:#6b7280;text-align:center;margin:8px 0}
+</style>
+<script>
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=document.getElementById('installApp');if(b)b.style.display='block';});
+async function installFinanceFix(){
+ if(!deferredInstallPrompt){alert('If your browser supports installation, use the browser menu and choose Add to Home screen.');return;}
+ deferredInstallPrompt.prompt();
+ await deferredInstallPrompt.userChoice;
+ deferredInstallPrompt=null;
+ const b=document.getElementById('installApp');if(b)b.style.display='none';
+}
+window.addEventListener('appinstalled',()=>{const b=document.getElementById('installApp');if(b)b.style.display='none';});
+window.addEventListener('load',()=>{
+ if('serviceWorker' in navigator && location.protocol!=='file:'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+});
+</script>
+
+</head>
+<body>
+<div id="lock" class="modal"><div class="modalbox">
+<h2>🔐 Finance Fix</h2><p>Enter your PIN</p><input id="pinIn" type="password" inputmode="numeric" maxlength="6" placeholder="PIN">
+<button onclick="unlock()">Unlock</button>
+<button class="secondary" onclick="forgotPin()">Forgot PIN?</button>
+<p class="tiny muted">Default PIN: <b>4826</b></p>
+</div></div>
+
+<div class="app">
+<header><h1>Finance Fix 💰</h1><div class="sub">Your simple personal money coach.</div></header>
+<button id="installApp" onclick="installFinanceFix()">📲 Install Finance Fix</button>
+<div class="pwa-note">Works offline after installation. Your data stays on this device.</div>
+
+<section id="home">
+<div class="card dark"><small>Current balance</small><div class="amount" id="bal">R0,00</div>
+<div class="actions"><button onclick="openTx('income')">+ Income</button><button class="secondary" onclick="openTx('expense')">− Expense</button></div></div>
+<div class="grid"><div class="stat">Income<b id="inc" class="positive">R0,00</b></div><div class="stat">Expenses<b id="exp" class="negative">R0,00</b></div></div>
+
+<div class="card"><div class="row"><h2>Monthly budget</h2><span id="budText">Not set</span></div><div class="progress"><div id="budBar" class="bar"></div></div><button style="margin-top:12px" onclick="setting('budget')">Set budget</button></div>
+<div class="card"><div class="row"><h2>Savings goal</h2><span id="goalText">Not set</span></div><div class="progress"><div id="goalBar" class="bar"></div></div><button style="margin-top:12px" onclick="setting('goal')">Set goal</button></div>
+
+<div class="card"><h2>This month's spending</h2><div id="chart" class="chart"></div><p id="chartEmpty" class="muted">No expenses this month.</p></div>
+<div class="card"><h2>Money Coach 💡</h2><div id="coach"></div></div>
+</section>
+
+<section id="transactions" class="hidden">
+<div class="card"><div class="row"><h2>Transactions</h2><button onclick="openTx('expense')">+ Add</button></div><div id="txs"></div></div>
+</section>
+
+<section id="reports" class="hidden">
+<div class="card"><h2>Monthly report</h2><p class="muted" id="reportMonth"></p><div id="report"></div></div>
+<div class="card"><h2>Top spending categories</h2><div id="topCats"></div></div>
+</section>
+
+<section id="settingsPage" class="hidden">
+<div class="card"><h2>Privacy & settings</h2><p class="muted">Your finance data is stored locally on this device.</p>
+<button onclick="setPin()">Change PIN</button>
+<button class="secondary" onclick="exportData()">Export backup</button>
+<input id="importFile" type="file" accept="application/json" onchange="importData(event)" style="display:none">
+<button class="secondary" onclick="document.getElementById('importFile').click()">Import backup</button>
+<button class="danger" onclick="clearAll()">Delete all data</button>
+</div></section>
+
+<div id="form" class="card hidden"><h2 id="formTitle"></h2>
+<label>Amount (R)</label><input id="amt" type="number" min="0" step=".01" placeholder="0.00">
+<label>Description</label><input id="desc" placeholder="e.g. Salary or groceries">
+<label>Category</label><select id="cat"><option>Food</option><option>Transport</option><option>Bills</option><option>Shopping</option><option>Education</option><option>Entertainment</option><option>General</option><option>Other</option></select>
+<button onclick="saveTx()">Save</button> <button class="secondary" onclick="closeForms()">Cancel</button></div>
+
+<div id="settings" class="card hidden"><h2 id="setTitle"></h2><input id="setAmt" type="number" min="0" step=".01">
+<button onclick="saveSetting()">Save</button> <button class="secondary" onclick="closeForms()">Cancel</button></div>
+
+<nav class="nav">
+<button id="nHome" onclick="page('home')">🏠<br>Home</button>
+<button id="nTx" onclick="page('transactions')">🧾<br>Transactions</button>
+<button id="nRep" onclick="page('reports')">📊<br>Reports</button>
+<button id="nSet" onclick="page('settingsPage')">⚙️<br>Settings</button>
+</nav>
+</div><div id="toast" class="toast"></div>
+
+<script>
+const KEY='financeFixCompleteV1';
+let d=JSON.parse(localStorage.getItem(KEY)||'null')||{tx:[],budget:0,goal:0,pin:'4826'},mode='',edit=-1;
+const money=n=>'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dateNow=new Date(), YM=dateNow.getFullYear()+'-'+String(dateNow.getMonth()+1).padStart(2,'0');
+function persist(){localStorage.setItem(KEY,JSON.stringify(d));render()}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',1800)}
+function page(p){['home','transactions','reports','settingsPage'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==p));['nHome','nTx','nRep','nSet'].forEach(x=>document.getElementById(x).classList.remove('active'));document.getElementById({home:'nHome',transactions:'nTx',reports:'nRep',settingsPage:'nSet'}[p]).classList.add('active');closeForms()}
+function closeForms(){document.getElementById('form').classList.add('hidden');document.getElementById('settings').classList.add('hidden');edit=-1}
+function openTx(t,i=-1){mode=t;edit=i;document.getElementById('form').classList.remove('hidden');document.getElementById('formTitle').textContent=i>=0?'Edit transaction':(t==='income'?'Add income':'Add expense');if(i>=0){let x=d.tx[i];amt.value=x.amount;desc.value=x.desc;cat.value=x.cat}else{amt.value='';desc.value='';cat.value='Food'}scrollTo(0,document.body.scrollHeight)}
+function saveTx(){let a=+amt.value;if(!a)return alert('Enter an amount.');let x={amount:a,desc:desc.value.trim()||'Transaction',cat:cat.value,type:mode,date:new Date().toISOString().slice(0,10)};if(edit>=0)d.tx[edit]=x;else d.tx.unshift(x);closeForms();persist();toast('Transaction saved')}
+function setting(t){mode=t;document.getElementById('settings').classList.remove('hidden');setTitle.textContent=t==='budget'?'Set monthly budget':'Set savings goal';setAmt.value=t==='budget'?d.budget:d.goal;scrollTo(0,document.body.scrollHeight)}
+function saveSetting(){let v=+setAmt.value;if(v<0)return;d[mode]=v;closeForms();persist();toast('Saved')}
+function del(i){if(confirm('Delete this transaction?')){d.tx.splice(i,1);persist();toast('Deleted')}}
+function setPin(){let p=prompt('Choose a new 4–6 digit PIN');if(p&&/^\\d{4,6}$/.test(p)){d.pin=p;persist();alert('PIN changed successfully.')}else if(p)alert('PIN must be 4–6 digits.')}
+function unlock(){if(pinIn.value===d.pin){lock.classList.add('hidden');pinIn.value=''}else alert('Wrong PIN.')}
+function forgotPin(){if(!confirm('Forgot your PIN? Resetting it will erase all Finance Fix data stored on this device. Continue?'))return;localStorage.removeItem(KEY);d={tx:[],budget:0,goal:0,pin:'4826'};lock.classList.add('hidden');alert('PIN reset. Your new PIN is 4826. Your old data was erased.');render()}
+function clearAll(){if(confirm('Delete ALL Finance Fix data?')){localStorage.removeItem(KEY);location.reload()}}
+function exportData(){let blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finance-fix-backup.json';a.click();URL.revokeObjectURL(a.href);toast('Backup exported')}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.tx||!Array.isArray(x.tx))throw 0;d={tx:x.tx,budget:+x.budget||0,goal:+x.goal||0,pin:x.pin||'4826'};persist();toast('Backup imported')}catch{alert('Invalid backup file.')}};r.readAsText(f)}
+function render(){
+let inc=d.tx.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0),exp=d.tx.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0),save=Math.max(0,inc-exp);
+bal.textContent=money(inc-exp);document.getElementById('inc').textContent=money(inc);document.getElementById('exp').textContent=money(exp);
+budText.textContent=d.budget?money(exp)+' / '+money(d.budget):'Not set';budBar.style.width=d.budget?Math.min(100,exp/d.budget*100)+'%':'0%';
+goalText.textContent=d.goal?money(save)+' / '+money(d.goal):'Not set';goalBar.style.width=d.goal?Math.min(100,save/d.goal*100)+'%':'0%';
+let m=d.tx.filter(x=>x.date.startsWith(YM)),cats={};m.filter(x=>x.type==='expense').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);let vs=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,7),mx=vs[0]?.[1]||1;
+chart.innerHTML=vs.map(([k,v])=>`<div class="col"><div class="barx" style="height:${Math.max(4,v/mx*120)}px"></div><div class="label">${esc(k)}<br>${money(v)}</div></div>`).join('');chartEmpty.style.display=vs.length?'none':'block';
+let tips=[];if(!inc)tips.push(['tip','Add your income to start your money plan.']);else{let rate=save/inc;if(rate<.1)tips.push(['warn','Your recorded savings are below 10% of income. Look at your biggest non-essential expense.']);else if(rate>=.2)tips.push(['good','Nice: your recorded savings are at least 20% of income.']);else tips.push(['tip','Try to gradually increase the amount you keep after expenses.'])}if(d.budget&&exp>d.budget)tips.push(['warn','You are over your monthly budget. Check your largest category.']);else if(d.budget&&exp>d.budget*.8)tips.push(['warn','You have used more than 80% of your monthly budget.']);if(d.goal&&save>=d.goal)tips.push(['good','You reached your savings goal! 🎉']);
+coach.innerHTML=tips.map(t=>`<div class="tip ${t[0]}">${t[1]}</div>`).join('');
+txs.innerHTML=d.tx.length?d.tx.slice(0,30).map((x,i)=>`<div class="tx"><div class="txmain"><div><b>${esc(x.desc)}</b><div class="muted">${esc(x.cat)} · ${x.date}</div></div><b class="${x.type==='income'?'positive':'negative'}">${x.type==='income'?'+':'−'}${money(x.amount)}</b></div><div style="margin-top:7px"><button class="secondary smallbtn" onclick="openTx('${x.type}',${i})">Edit</button> <button class="danger smallbtn" onclick="del(${i})">Delete</button></div></div>`).join(''):'<p class="muted">No transactions yet.</p>';
+reportMonth.textContent=dateNow.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
+report.innerHTML=`<p><b>Total income:</b> ${money(inc)}</p><p><b>Total expenses:</b> ${money(exp)}</p><p><b>Money left:</b> ${money(save)}</p><p><b>Savings rate:</b> ${inc?(save/inc*100).toFixed(1):0}%</p>`;
+topCats.innerHTML=vs.length?vs.map(([k,v])=>`<p class="row"><span>${esc(k)}</span><b>${money(v)}</b></p>`).join(''):'<p class="muted">No spending data this month.</p>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+page('home');render();
+</script>
+</body></html>
